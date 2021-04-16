@@ -1,0 +1,177 @@
+///////////////////////////Stripe Payment Gateway Implement//////////////////////////////////
+1.Fresh laravel Project Install
+composer create-project laravel/laravel Tapan
+
+2.Install stripe
+composer require stripe/stripe-php
+
+3.Write this two lines in your .env file 
+STRIPE_KEY=pk_test_xxxxxxxxxxxxxxxxxxx 
+STRIPE_SECRET=sk_test_xxxxxxxxxxxxxx
+
+4.Create route in web.php
+Route::get('stripe', 'StripeController@stripe');
+Route::post('payment', 'StripeController@payStripe');
+
+5.Create a controller StripeController and write this code
+namespace App\Http\Controllers;
+use Illuminate\Http\Request;
+use Stripe;
+class StripeController extends Controller
+{
+    public function stripe()
+    {
+        return view('stripe');
+    }
+    public function payStripe(Request $request)
+    {
+        $this->validate($request, [
+            'card_no' => 'required',
+            'expiry_month' => 'required',
+            'expiry_year' => 'required',
+            'cvv' => 'required',
+        ]);
+ 
+        $stripe = Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
+        try {
+            $response = \Stripe\Token::create(array(
+                "card" => array(
+                    "number"    => $request->input('card_no'),
+                    "exp_month" => $request->input('expiry_month'),
+                    "exp_year"  => $request->input('expiry_year'),
+                    "cvc"       => $request->input('cvv')
+                )));
+            if (!isset($response['id'])) {
+                return redirect()->route('addmoney.paymentstripe');
+            }
+            $charge = \Stripe\Charge::create([
+                'card' => $response['id'],
+                'currency' => 'USD',
+                'amount' =>  100 * 100,
+                'description' => 'wallet',
+            ]);
+ 
+            if($charge['status'] == 'succeeded') {
+                return redirect('stripe')->with('success', 'Payment Success!');
+ 
+            } else {
+                return redirect('stripe')->with('error', 'something went to wrong.');
+            }
+ 
+        }
+        catch (Exception $e) {
+            return $e->getMessage();
+        }
+ 
+    }
+}
+6.Create a blade page stripe.blade.php in resource/views and write this code
+<html lang="en">
+<head>
+    <title>Bootstrap Example</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+</head>
+<body>
+ 
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="text-center">
+                <h2>Pay for Event</h2>
+                <br>
+            </div>
+        </div>
+    </div>
+ 
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+ 
+    @if(session()->has('error'))
+        <div class="alert alert-danger">
+            {{ session()->get('error') }}
+        </div>
+    @endif
+ 
+    @if(session()->has('success'))
+        <div class="alert alert-success">
+            {{ session()->get('success') }}
+        </div>
+    @endif
+    <div class="row">
+        <div class="col-lg-3">
+ 
+        </div>
+        <div class="col-lg-6">
+            <form  action="{{url('payment')}}"  data-cc-on-file="false" data-stripe-publishable-key="pk_test_iS5sLGz5CONWxJ8KHhBzHHvD" name="frmStripe" id="frmstripe" method="post">
+                {{ csrf_field() }}
+                <div class="row">
+                    <div class="col-lg-12 form-group">
+                        <label>Name on Card</label>
+                        <input class="form-control" size="4" type="text">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12 form-group">
+                        <label>Card Number</label>
+                        <input autocomplete="off" class="form-control" size="20" type="text" name="card_no">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-4 form-group">
+                        <label>CVC</label>
+                        <input autocomplete="off" class="form-control" placeholder="ex. 311" size="3" type="text" name="cvv">
+                    </div>
+                    <div class="col-lg-4 form-group">
+                        <label>Expiration</label>
+                        <input class="form-control" placeholder="MM" size="2" type="text" name="expiry_month">
+                    </div>
+                    <div class="col-lg-4 form-group">
+                        <label> </label>
+                        <input class="form-control" placeholder="YYYY" size="4" type="text" name="expiry_year">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="form-control total btn btn-primary">
+                            Total: <span class="amount">$20</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12 form-group">
+                        <button class="form-control btn btn-success submit-button" type="submit" style="margin-top: 10px;">Pay »</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+7.Write this code in config/service.php
+'stripe' => [
+    'model'  => 'App\Models\Order',
+    'key'    => env('STRIPE_API_PUBLIC'),
+    'secret' => env('STRIPE_API_SECRET'),
+    ],
+8.Make sure you connect database in your .env file
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=envertis
+DB_USERNAME=root
+DB_PASSWORD=
+Otherwise your project will not run.
+Note:-Make sure you have a stripe account.
+
+////////////////////////////////Thank You//////////////////////////////////////
